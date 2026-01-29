@@ -9,8 +9,9 @@ class ohlcBase(SQLModel):
 
     date_key: str = Field(index=True, foreign_key="date.date_key", description="Date key of the OHLC data point")
     time_key: str = Field(index=True, foreign_key="time.time_key", description="timestamp key of the OHLC data point")
-    currency_key: str = Field(default="BTC", foreign_key="currency.currency_key", description="coin symbol, e.g., BTC, ETH")
-    
+    currency_key: str = Field(default="USD", foreign_key="currency.currency_key", description="currency symbol, e.g., USD, CAD")
+    coin_key: str = Field(default="BTC", foreign_key="coin.coin_key", description="coin symbol, e.g., BTC, ETH")
+
     open: float = Field(gt=0, description="Opening price")
     high: float = Field(gt=0, description="Highest price")
     low: float = Field(gt=0, description="Lowest price")
@@ -19,6 +20,7 @@ class ohlcBase(SQLModel):
     # date : Date = Relationship(back_populates="ohlc_data")
     # time : Time = Relationship(back_populates="ohlc_data")
     # currency : Currency = Relationship(back_populates="ohlc_data")
+    # coin : Coin = Relationship(back_populates="ohlc_data")
 
 class ohlcHistory(ohlcBase, table=True):
     __tablename__ = "gold_fact_4hourlyohlc_last30days"
