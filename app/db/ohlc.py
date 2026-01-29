@@ -1,6 +1,6 @@
 
 from typing import Optional
-from SQLModel import SQLModel, Field
+from sqlmodel import SQLModel, Field
 
 
 
@@ -17,10 +17,10 @@ class ohlcBase(SQLModel):
     low: float = Field(gt=0, description="Lowest price")
     close: float = Field(gt=0, description="Closing price")
 
-    # date : Date = Relationship(back_populates="ohlc_data")
-    # time : Time = Relationship(back_populates="ohlc_data")
-    # currency : Currency = Relationship(back_populates="ohlc_data")
-    # coin : Coin = Relationship(back_populates="ohlc_data")
+    date : "Date" = Relationship(back_populates="ohlc_data")
+    time : "Time" = Relationship(back_populates="ohlc_data")
+    currency : "Currency" = Relationship(back_populates="ohlc_data")
+    coin : "Coin" = Relationship(back_populates="ohlc_data")
 
 class ohlcHistory(ohlcBase, table=True):
     __tablename__ = "gold_fact_4hourlyohlc_last30days"

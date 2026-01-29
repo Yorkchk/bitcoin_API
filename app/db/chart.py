@@ -1,7 +1,5 @@
-
-from typing import Optional
-from SQLModel import SQLModel, Field
-
+from sqlmodel import SQLModel, Field, Relationship
+from typing import Optional, List
 
 
 class chartBase(SQLModel):
@@ -16,10 +14,10 @@ class chartBase(SQLModel):
     prices: float = Field(gt=0, description="coin price")
     market_caps: float = Field(gt=0, description="market capitalization")
 
-    # date : Date = Relationship(back_populates="chart_data")
-    # time : Time = Relationship(back_populates="chart_data")
-    # currency : Currency = Relationship(back_populates="chart_data")
-    # coin : Coin = Relationship(back_populates="chart_data")
+    date : "Date" = Relationship(back_populates="chart_data")
+    time : "Time" = Relationship(back_populates="chart_data")
+    currency : "Currency" = Relationship(back_populates="chart_data")
+    coin : "Coin" = Relationship(back_populates="chart_data")
 
 class chartHistory(chartBase, table=True):
     __tablename__ = "gold_fact_hourlyprices_last90days"
@@ -27,3 +25,4 @@ class chartHistory(chartBase, table=True):
 
 class chartLive(chartBase, table=True):
     __tablename__ = "gold_fact_5minprices_lastday"
+
