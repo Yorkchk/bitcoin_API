@@ -1,7 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
 
-
 class Currency(SQLModel, table=True):
     __tablename__ = "gold_dim_currency"
 
@@ -13,5 +12,8 @@ class Currency(SQLModel, table=True):
     currency_symbol : str = Field(description="Symbol of the currency, e.g., $, CA$")
     is_active : bool = Field(description="Indicates if the currency is currently active")
 
-    ohlc_data : List["ohlcBase"] = Relationship(back_populates='currency')
-    chart_data : List["chartBase"] = Relationship(back_populates='currency')
+    ohlc_history : List["ohlcHistory"] = Relationship(back_populates='currency_ohlc_history')
+    chart_history : List["chartHistory"] = Relationship(back_populates='currency_chart_history')
+
+    ohlc_live : List["ohlcLive"] = Relationship(back_populates='currency_ohlc_live')
+    chart_live : List["chartLive"] = Relationship(back_populates='currency_chart_live')

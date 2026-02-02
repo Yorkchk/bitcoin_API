@@ -1,6 +1,8 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, List
+from typing import List
 from datetime import date
+
+
 
 class Coin(SQLModel, table=True):
     __tablename__ = "gold_dim_coin"
@@ -14,5 +16,8 @@ class Coin(SQLModel, table=True):
     source : str = Field(description="Source of the coin data, e.g., CoinGecko, CoinMarketCap")
     is_active : bool = Field(description="Indicates if the coin is currently active")
 
-    ohlc_data : List["ohlcBase"] = Relationship(back_populates='coin')
-    chart_data : List["chartBase"] = Relationship(back_populates='coin')
+    ohlc_history : List["ohlcHistory"] = Relationship(back_populates='coin_ohlc_history')
+    chart_history : List["chartHistory"] = Relationship(back_populates='coin_chart_history')
+
+    ohlc_live : List["ohlcLive"] = Relationship(back_populates='coin_ohlc_live')
+    chart_live : List["chartLive"] = Relationship(back_populates='coin_chart_live')
