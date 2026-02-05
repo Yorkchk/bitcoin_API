@@ -26,3 +26,11 @@ class currency_schema(BaseModel):
     currency_name: str
     currency_symbol : str
     is_active: bool
+
+class coin_schema(BaseModel):
+    coin_key: str
+    coin_id: str
+    founded_year : datetime
+    ticker_symbol : str
+    source : str
+    is_active: bool
