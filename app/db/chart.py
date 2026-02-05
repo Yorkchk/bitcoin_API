@@ -13,6 +13,7 @@ class chartBase(SQLModel):
     
     prices: float = Field(gt=0, description="coin price")
     market_caps: float = Field(gt=0, description="market capitalization")
+    total_volumes: float = Field(gt=0, description="total trading volume")
 
 class chartHistory(chartBase, table=True):
     __tablename__ = "gold_fact_hourlyprices_last90days"
