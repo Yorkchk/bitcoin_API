@@ -3,7 +3,7 @@ from datetime import datetime
 
 
 
-class chart_data(BaseModel):
+class chart_schema(BaseModel):
     bitcoin_date: datetime
     coin_name: str
     currency_name: str
@@ -11,7 +11,7 @@ class chart_data(BaseModel):
     market_cap: float
     total_volume: float
 
-class ohlc_data(BaseModel):
+class ohlc_schema(BaseModel):
     timestamp: datetime
     coin_name: str
     currency_name: str
@@ -20,3 +20,9 @@ class ohlc_data(BaseModel):
     low: float
     close: float
 
+class currency_schema(BaseModel):
+    currency_key: str
+    currency_code: str
+    currency_name: str
+    currency_symbol : str
+    is_active: bool

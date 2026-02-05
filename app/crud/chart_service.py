@@ -1,7 +1,7 @@
 from sqlmodel import Session, select, func, col, cast
 from sqlalchemy import DateTime
 from db import chartHistory, Date,Time,Coin,Currency,chartHistory, chartLive
-from schemas.schemas import chart_data
+from schemas.schemas import chart_schema
 
 
 class ChartService:
@@ -44,7 +44,7 @@ class ChartService:
         results = self.session.exec(statement).all()
 
         schema = [
-            chart_data(
+            chart_schema(
                 bitcoin_date=row.bitcoin_date,
                 coin_name=row.coin_name,
                 currency_name=row.currency_name,
@@ -90,7 +90,7 @@ class ChartService:
         results = self.session.exec(statement).all()
 
         schema = [
-            chart_data(
+            chart_schema(
                 bitcoin_date=row.bitcoin_date,
                 coin_name=row.coin_name,
                 currency_name=row.currency_name,

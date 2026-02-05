@@ -1,7 +1,7 @@
 from sqlmodel import Session, select, func, col, cast
 from sqlalchemy import DateTime
 from db import ohlcHistory, Date,Time,Coin,Currency,ohlcLive
-from schemas.schemas import ohlc_data
+from schemas.schemas import ohlc_schema
 
 
 class OhlcService:
@@ -47,7 +47,7 @@ class OhlcService:
         results = self.session.exec(statement).all()
 
         schema = [
-            ohlc_data(
+            ohlc_schema(
                 timestamp=row.timestamp,
                 coin_name=row.coin_name,
                 currency_name=row.currency_name,
@@ -95,7 +95,7 @@ class OhlcService:
         results = self.session.exec(statement).all()
 
         schema = [
-            ohlc_data(
+            ohlc_schema(
                 timestamp=row.timestamp,
                 coin_name=row.coin_name,
                 currency_name=row.currency_name,
