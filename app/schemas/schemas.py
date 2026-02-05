@@ -2,12 +2,8 @@ from pydantic import BaseModel
 from datetime import datetime
 
 
-class chartPoint(BaseModel):
-    bitcoin_date: datetime
-    price: float
-    market_cap: float
 
-class chartPointv2(BaseModel):
+class chart_data(BaseModel):
     bitcoin_date: datetime
     coin_name: str
     currency_name: str
@@ -15,19 +11,12 @@ class chartPointv2(BaseModel):
     market_cap: float
     total_volume: float
 
-class ohlcPoint(BaseModel):
+class ohlc_data(BaseModel):
     timestamp: datetime
+    coin_name: str
+    currency_name: str
     open: float
     high: float
     low: float
     close: float
 
-class chartData(BaseModel):
-    currency_name: str
-    coin_name : str
-    data_points: list[chartPoint]
-
-class ohlcData(BaseModel):
-    currency_name: str
-    coin_name : str
-    data_points: list[ohlcPoint]

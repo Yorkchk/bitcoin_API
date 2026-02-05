@@ -1,82 +1,87 @@
 from sqlmodel import Session, select, func, col, cast
 from sqlalchemy import DateTime
-from db import chartHistory, Date,Time,Coin,Currency,chartHistory, chartLive
-from schemas.schemas import chart_data
+from db import ohlcHistory, Date,Time,Coin,Currency,ohlcLive
+from schemas.schemas import ohlc_data
 
 
-class ChartService:
-    def __init__(self, session:Session):
+class OhlcService:
+    def __init__(self, session: Session):
         self.session = session
 
-    def get_chart_history(self, limit: int = None, start_date: str = None, end_date: str = None):
+
+    def get_ohlc_history(self, limit: int = None, start_time: str = None, end_time: str = None):
         statement = (
             select(
                 # 1. CAST(CONCAT(...) AS DATETIME2)
                 cast(
                     func.concat(Date.full_date, ' ', Time.time_of_day),
                     DateTime
-                ).label("bitcoin_date"),
+                ).label("timestamp"),
                 
                 # 2. Column Aliasing (.label in SQLAlchemy/SQLModel)
                 Coin.coin_id.label("coin_name"),
                 Currency.currency_code.label("currency_name"),
-                chartHistory.prices.label("price"),
-                chartHistory.market_caps.label("market_cap"),
-                chartHistory.total_volumes.label("total_volume")
+                ohlcHistory.open.label("open"),
+                ohlcHistory.high.label("high"),
+                ohlcHistory.low.label("low"),
+                ohlcHistory.close.label("close")
             )
             # 3. Joins
-            .join(Coin, chartHistory.coin_key == Coin.coin_key)
-            .join(Currency, chartHistory.currency_key == Currency.currency_key)
-            .join(Date, chartHistory.date_key == Date.date_key)
-            .join(Time, chartHistory.time_key == Time.time_key)
+            .join(Coin, ohlcHistory.coin_key == Coin.coin_key)
+            .join(Currency, ohlcHistory.currency_key == Currency.currency_key)
+            .join(Date, ohlcHistory.date_key == Date.date_key)
+            .join(Time, ohlcHistory.time_key == Time.time_key)
             .order_by(col(Date.full_date), col(Time.time_of_day))
+
         )
-        if start_date:
+        if start_time:
             statement = statement.where(
-                func.concat(Date.full_date, ' ', Time.time_of_day) >= start_date
+                func.concat(Date.full_date, ' ', Time.time_of_day) >= start_time
             )
-        if end_date:
+        if end_time:
             statement = statement.where(
-                func.concat(Date.full_date, ' ', Time.time_of_day) <= end_date
+                func.concat(Date.full_date, ' ', Time.time_of_day) <= end_time
             )
         statement = statement.limit(limit)
 
         results = self.session.exec(statement).all()
 
         schema = [
-            chart_data(
-                bitcoin_date=row.bitcoin_date,
+            ohlc_data(
+                timestamp=row.timestamp,
                 coin_name=row.coin_name,
                 currency_name=row.currency_name,
-                price=row.price,
-                market_cap=row.market_cap,
-                total_volume=row.total_volume
+                open=row.open,
+                high=row.high,
+                low=row.low,
+                close=row.close
             )
             for row in results
         ]
         return schema
-
-    def get_chart_lastday(self, limit : int = None, start_time: str = None, end_time: str = None):
+    
+    def get_ohlc_lastday(self, limit : int = None, start_time: str = None, end_time: str = None):
         statement = (
             select(
                 # 1. CAST(CONCAT(...) AS DATETIME2)
                 cast(
                     func.concat(Date.full_date, ' ', Time.time_of_day),
                     DateTime
-                ).label("bitcoin_date"),
+                ).label("timestamp"),
                 
                 # 2. Column Aliasing (.label in SQLAlchemy/SQLModel)
                 Coin.coin_id.label("coin_name"),
                 Currency.currency_code.label("currency_name"),
-                chartLive.prices.label("price"),
-                chartLive.market_caps.label("market_cap"),
-                chartLive.total_volumes.label("total_volume")
+                ohlcLive.open.label("open"),
+                ohlcLive.high.label("high"),
+                ohlcLive.low.label("low"),
+                ohlcLive.close.label("close")
             )
             # 3. Joins
-            .join(Coin, chartLive.coin_key == Coin.coin_key)
-            .join(Currency, chartLive.currency_key == Currency.currency_key)
-            .join(Date, chartLive.date_key == Date.date_key)
-            .join(Time, chartLive.time_key == Time.time_key)
+            .join(Coin, ohlcLive.coin_key == Coin.coin_key)
+            .join(Currency, ohlcLive.currency_key == Currency.currency_key)
+            .join(Date, ohlcLive.date_key == Date.date_key)
+            .join(Time, ohlcLive.time_key == Time.time_key)
             .order_by(col(Date.full_date), col(Time.time_of_day))
         )
     
@@ -90,16 +95,16 @@ class ChartService:
         results = self.session.exec(statement).all()
 
         schema = [
-            chart_data(
-                bitcoin_date=row.bitcoin_date,
+            ohlc_data(
+                timestamp=row.timestamp,
                 coin_name=row.coin_name,
                 currency_name=row.currency_name,
-                price=row.price,
-                market_cap=row.market_cap,
-                total_volume=row.total_volume
+                open=row.open,
+                high=row.high,
+                low=row.low,
+                close=row.close
             )
             for row in results
         ]
         return schema
     
-
