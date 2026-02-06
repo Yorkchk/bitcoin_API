@@ -3,6 +3,7 @@ from .coin import Coin
 from .currency import Currency
 from .chart import chartHistory, chartLive
 from .ohlc import ohlcHistory, ohlcLive
+from .api_keys import APIkey
 
 __all__ = [
     "Date",
@@ -12,5 +13,6 @@ __all__ = [
     "chartHistory",
     "chartLive",
     "ohlcHistory",
-    "ohlcLive"
+    "ohlcLive",
+    "APIkey",
 ]

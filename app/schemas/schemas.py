@@ -34,3 +34,11 @@ class coin_schema(BaseModel):
     ticker_symbol : str
     source : str
     is_active: bool
+
+class create_API_key_schema(BaseModel):
+    key_name: str
+    owner_email: str | None = None
+
+class upload_API_key_schema(BaseModel):
+    key_name: str
+    api_key: str

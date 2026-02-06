@@ -1,17 +1,39 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
-from sqlmodel import Session
+from sqlmodel import Session, SQLModel
+from core.session import engine
 from core.session import get_session
 from crud.chart_service import ChartService
 from crud.ohlc_service import OhlcService
 from crud.currency_service import CurrencyService
 from crud.coin_service import CoinService
+from crud.api_service import APIService
+from schemas.schemas import create_API_key_schema, upload_API_key_schema
 
-app = FastAPI()
 
-@app.get("/", response_model=list)
-async def root(session : Session = Depends(get_session)):
-    chartHistoryService = CoinService(session)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup code can be added here
+    SQLModel.metadata.create_all(bind=engine)
+    yield
+    # Shutdown code can be added here
+
+app = FastAPI(lifespan=lifespan)
+
+
+
+@app.put("/", response_model=upload_API_key_schema)
+async def root(create_API_schema: create_API_key_schema, session: Session = Depends(get_session)):
+    apiService = APIService(session)
     
-    results = chartHistoryService.get_all_coins()
+    results = apiService.create_api_key(create_API_schema)
 
     return results
+
+# @app.get("/", response_model=list)
+# async def root(session: Session = Depends(get_session)):
+#     apiService = ChartService(session)
+    
+#     results = apiService.get_all_charts(limit=10)
+
+#     return results
