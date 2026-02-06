@@ -30,10 +30,13 @@ async def root(create_API_schema: create_API_key_schema, session: Session = Depe
 
     return results
 
-# @app.get("/", response_model=list)
-# async def root(session: Session = Depends(get_session)):
-#     apiService = ChartService(session)
+@app.get("/", response_model=list)
+async def root(key_name : str, API_KEY : str, session: Session = Depends(get_session)):
+    apiService = APIService(session)
     
-#     results = apiService.get_all_charts(limit=10)
+    if not apiService.verify_api_key(key_name, API_KEY):
+        return {"error": "Invalid API Key"}
 
-#     return results
+    chart = ChartService(session)
+    results = chart.get_chart_history(limit=10)
+    return results

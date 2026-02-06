@@ -1,9 +1,7 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from datetime import datetime
-import uuid
-import os
-import hashlib
+
 
 
 class APIkey(SQLModel, table=True):
@@ -19,21 +17,8 @@ class APIkey(SQLModel, table=True):
     last_request_date: Optional[datetime] = Field(default=None)
 
     owner_email: Optional[str] = Field(default=None)
-
-    def generate_APIkey(self) -> str:
-        key_value = str(uuid.uuid4()).replace('-', '')
-        return key_value
+  
     
-    def hash_APIkey(self, api_key: str) -> str:
-        salt = os.urandom(16)
-        hashed_key = hashlib.sha256(salt + api_key.encode()).hexdigest()
-        return f"{salt.hex()}:{hashed_key}"
-    
-    def verify_APIkey(self, stored_key: str, provided_key: str) -> bool:
-        salt_hex, hashed_key = stored_key.split(':')
-        salt = bytes.fromhex(salt_hex)
-        provided_hashed = hashlib.sha256(salt + provided_key.encode()).hexdigest()
-        return provided_hashed == hashed_key
 
     def verify_rate_limit(self) -> bool:
         return self.requests_made_today < self.rate_limit_per_day
