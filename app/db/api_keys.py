@@ -37,3 +37,4 @@ class APIkey(SQLModel, table=True):
 
     def increment_requests(self):
         self.requests_made_today += 1
+
