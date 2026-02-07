@@ -11,10 +11,11 @@ from datetime import datetime
 
 class RedisService:
 
-    r = redis.Redis(decode_responses=True) 
+    # r = redis.Redis(decode_responses=True) 
 
-    def __init__(self, api_service: APIService):
+    def __init__(self, api_service: APIService, redis):
         self.api_service = api_service
+        self.r = redis
 
     def set_key(self, key: str, value: str, ex: int = None):
         self.r.set(key, value, ex=ex)
@@ -51,28 +52,28 @@ class RedisService:
     # We assume that the authenticate func is called before this one
     def check_rate_limit(self, keyname_provided: str):
         try:
-            redis_key = f"usage:{keyname_provided}"
-            redis_value = self.get_value(redis_key)
+            usage_key = f"usage:{keyname_provided}"
+            auth_key = f"auth:{keyname_provided}"
             
-            requests_limit = self.get_value(f"auth:{keyname_provided}").rate_limit_per_day
+            # 1. Efficiently get auth data
+            raw_auth = self.get_value(auth_key)
+            if not raw_auth:
+                return False 
+            
+            api_info = APIkey.model_validate_json(raw_auth)
+            
+            # 2. Atomic check and increment
+            # Use INCRBY 0 to get current value without changing it, or just GET
+            current_usage = int(self.get_value(usage_key) or 0)
 
-            if redis_value is None:
-                requests_made = self.get_value(f"auth:{keyname_provided}").requests_made_today
-                self.set_key(redis_key, requests_made, ex=86400)  # Set with 24-hour expiration
-                if requests_made < requests_limit:
-                    return True
-                else:
-                    self.deactivate_key(keyname_provided)
-                    return False
-            else:
-                if redis_value < requests_limit:
-                    return True
-                else:
-                    self.deactivate_key(keyname_provided)
-                    return False
-
+            if current_usage >= api_info.rate_limit_per_day:
+                self.deactivate_key(keyname_provided)
+                return False
+                
+            return True
         except Exception as e:
-            return Exception(f"Error checking rate limit: {str(e)}")
+            # Logging here would be better than returning an Exception object
+            return False
         
     def deactivate_key(self, key_name: str):
         raw_auth = self.get_value(f"auth:{key_name}")
@@ -87,10 +88,10 @@ class RedisService:
     def increment_request_count(self, keyname_provided: str):
         try:
             redis_key = f"usage:{keyname_provided}"
-            redis_value = self.get_value(redis_key)
-
-            # I know that the value exist because the check_rate_limit func is called before this one
-            self.set_key(redis_key, int(redis_value) + 1, ex=86400)  # Increment the count and reset expiration to 24 hours
+            new_count = self.r.incr(redis_key)
+            if new_count == 1:
+                self.r.expire(redis_key, 86400)
+            return new_count
             
         except Exception as e:
             return Exception(f"Error incrementing request count: {str(e)}")
@@ -99,7 +100,7 @@ class RedisService:
         try:    
             for key in self.r.scan_iter("usage:*"):
                 self.set_key(key, 0, ex=86400)
-                return True
+            return True
         except Exception as e:
             return Exception(f"Error resetting daily limit: {str(e)}")
         
@@ -152,20 +153,46 @@ class RedisService:
 
 
     def refresh_db_apicash(self):
-        for key in self.r.scan_iter("auth:*"):
-            json_apikey = self.get_value(key)
-            if json_apikey:
+        # 1. Collect all keys
+        keys = list(self.r.scan_iter("auth:*"))
+        if not keys:
+            return True
+
+        # 2. Pipeline all GET requests (Auth objects and Usage counts)
+        with self.r.pipeline() as pipe:
+            for key in keys:
+                pipe.get(key)
+                # Derive the usage key from the auth key (auth:name -> usage:name)
+                name = key.split(":", 1)[1]
+                pipe.get(f"usage:{name}")
+            
+            # results will be [auth1, usage1, auth2, usage2, ...]
+            results = pipe.execute()
+
+        # 3. Process the results in pairs
+        for i in range(0, len(results), 2):
+            raw_auth = results[i]
+            raw_usage = results[i+1]
+
+            if raw_auth:
                 try:
-                    api_key_obj = APIkey.model_validate_json(json_apikey)
-                    requests_made_today = self.get_value(f"usage:{api_key_obj.key_name}")
+                    api_key_obj = APIkey.model_validate_json(raw_auth)
+                    
+                    # Default to 0 if usage key doesn't exist in Redis yet
+                    usage_count = int(raw_usage) if raw_usage else 0
+                    
+                    # 4. Sync to Database
                     self.api_service.update_api_key(
+                        key_name=api_key_obj.key_name,
                         is_active=api_key_obj.is_active,
-                        requests_made_today=requests_made_today,
-                        last_request_date=api_key_obj.last_request_date,
-                        key_name=api_key_obj.key_name
+                        requests_made_today=usage_count,
+                        last_request_date=api_key_obj.last_request_date
                     )
-                except (ValidationError, json.JSONDecodeError):
-                    return Exception(f"Error refreshing DB cache for key {key}: Invalid data format")
+                except (ValidationError, ValueError) as e:
+                    # Log the error but continue with other keys
+                    print(f"Error processing key {keys[i//2]}: {e}")
+                    continue
+
         return True
     
 

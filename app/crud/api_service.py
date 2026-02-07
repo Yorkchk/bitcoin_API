@@ -100,3 +100,14 @@ class APIService:
             self.session.commit()
             return True
         return False
+    
+    def update_api_key(self, is_active: bool, requests_made_today: int, last_request_date: datetime, key_name: str):
+        api_key = self.get_api_key(key_name)
+        if api_key is not None and isinstance(api_key, APIkey):
+            api_key.is_active = is_active
+            api_key.requests_made_today = requests_made_today
+            api_key.last_request_date = last_request_date
+            self.session.add(api_key)
+            self.session.commit()
+            return True
+        return False
