@@ -8,7 +8,8 @@ from crud.ohlc_service import OhlcService
 from crud.currency_service import CurrencyService
 from crud.coin_service import CoinService
 from crud.api_service import APIService
-from schemas.schemas import create_API_key_schema, upload_API_key_schema
+from crud.redis_service import RedisService
+from schemas.schemas import create_API_key_schema, upload_API_key_schema, chart_schema
 
 
 @asynccontextmanager
@@ -33,10 +34,13 @@ async def root(create_API_schema: create_API_key_schema, session: Session = Depe
 @app.get("/", response_model=list)
 async def root(key_name : str, API_KEY : str, session: Session = Depends(get_session)):
     apiService = APIService(session)
-    
-    if not apiService.verify_api_key(key_name, API_KEY):
-        return {"error": "Invalid API Key"}
-
-    chart = ChartService(session)
-    results = chart.get_chart_history(limit=10)
-    return results
+    redisService = RedisService(apiService)
+    # if not apiService.verify_apikey(key_name, API_KEY):
+    #     return {"error": "Invalid API Key"}
+    if redisService.authenticate_apikey(key_name, API_KEY):
+            
+        chart = ChartService(session)
+        results = chart.get_chart_history(limit=10)
+        return results
+    else:
+        return []

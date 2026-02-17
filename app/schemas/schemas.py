@@ -42,3 +42,5 @@ class create_API_key_schema(BaseModel):
 class upload_API_key_schema(BaseModel):
     key_name: str
     api_key: str
+
+    

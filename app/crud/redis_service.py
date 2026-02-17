@@ -1,8 +1,5 @@
 import redis
 import json
-from api_service import APIService
-from chart_service import ChartService
-from ohlc_service import OhlcService
 from schemas.schemas import chart_schema, ohlc_schema
 from pydantic import ValidationError
 from db import APIkey
@@ -13,9 +10,8 @@ class RedisService:
 
     # r = redis.Redis(decode_responses=True) 
 
-    def __init__(self, api_service: APIService, redis):
-        self.api_service = api_service
-        self.r = redis
+    def __init__(self):
+        self.r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
     def set_key(self, key: str, value: str, ex: int = None):
         self.r.set(key, value, ex=ex)
@@ -29,25 +25,9 @@ class RedisService:
         redis_key = f"auth:{keyname_provided}"
         redis_value = self.get_value(redis_key)
         if redis_value is None:
-            api_key = self.api_service.verify_apikey(provided_key, keyname_provided)
-            if api_key == False:
-                return False
-            else:
-                json_data = api_key.model_dump_json()
-                self.set_key(redis_key, json_data, ex=300)
-                return True
+            return False
         else:
-            try:
-                # 1. Convert the string back into an APIKey object
-                api_key_obj = APIkey.model_validate_json(redis_value)
-                
-                # 2. Now you can safely access attributes
-                return (api_key_obj.key_name == keyname_provided and 
-                        self.api_service.verify_APIkey_hashedkey(api_key_obj, provided_key))
-                        
-            except (ValidationError, AttributeError, json.JSONDecodeError):
-                # If the data in Redis is old or corrupted, treat it as a cache miss
-                return False
+            return redis_value
             
     # We assume that the authenticate func is called before this one
     def check_rate_limit(self, keyname_provided: str):
@@ -108,14 +88,15 @@ class RedisService:
         redis_key = f"data:chart_{type}:{limit}:{start}:{end}"
         redis_value = self.get_value(redis_key)
         if redis_value is None:
-            chart_service = ChartService(self.api_service.session)
-            if type == "lastday":
-                data = chart_service.get_chart_lastday(limit, start, end)
-            elif type == "history":
-                data = chart_service.get_chart_data(limit, start, end)
-            json_data = json.dumps([item.model_dump() for item in data])
-            self.set_key(redis_key, json_data, ex=300)  # Cache for 5 minutes
-            return data
+            # chart_service = ChartService(session)
+            # if type == "lastday":
+            #     data = chart_service.get_chart_lastday(limit, start, end)
+            # elif type == "history":
+            #     data = chart_service.get_chart_data(limit, start, end)
+            # json_data = json.dumps([item.model_dump() for item in data])
+            # self.set_key(redis_key, json_data, ex=300)  # Cache for 5 minutes
+            # return data
+            return False
         else:
             try:
                 data_list = json.loads(redis_value)
@@ -124,17 +105,18 @@ class RedisService:
                 return None
             
     def cache_ohlc(self,type : str, limit : int, start: str, end: str):
-        redis_key = f"data:chart_{type}:{limit}:{start}:{end}"
+        redis_key = f"data:ohlc_{type}:{limit}:{start}:{end}"
         redis_value = self.get_value(redis_key)
         if redis_value is None:
-            ohlc_service = OhlcService(self.api_service.session)
-            if type == "lastday":
-                data = ohlc_service.get_ohlc_lastday(limit, start, end)
-            elif type == "history":
-                data = ohlc_service.get_ohlc_history(limit, start, end)
-            json_data = json.dumps([item.model_dump() for item in data])
-            self.set_key(redis_key, json_data, ex=300)  # Cache for 5 minutes
-            return data
+            # ohlc_service = OhlcService(self.api_service.session)
+            # if type == "lastday":
+            #     data = ohlc_service.get_ohlc_lastday(limit, start, end)
+            # elif type == "history":
+            #     data = ohlc_service.get_ohlc_history(limit, start, end)
+            # json_data = json.dumps([item.model_dump() for item in data])
+            # self.set_key(redis_key, json_data, ex=300)  # Cache for 5 minutes
+            # return data
+            return False
         else:
             try:
                 data_list = json.loads(redis_value)
@@ -152,47 +134,47 @@ class RedisService:
             self.set_key(f"auth:{key_name}", api_key_obj.model_dump_json(), ex=300)
 
 
-    def refresh_db_apicash(self):
-        # 1. Collect all keys
-        keys = list(self.r.scan_iter("auth:*"))
-        if not keys:
-            return True
+    # def refresh_db_apicash(self):
+    #     # 1. Collect all keys
+    #     keys = list(self.r.scan_iter("auth:*"))
+    #     if not keys:
+    #         return True
 
-        # 2. Pipeline all GET requests (Auth objects and Usage counts)
-        with self.r.pipeline() as pipe:
-            for key in keys:
-                pipe.get(key)
-                # Derive the usage key from the auth key (auth:name -> usage:name)
-                name = key.split(":", 1)[1]
-                pipe.get(f"usage:{name}")
+    #     # 2. Pipeline all GET requests (Auth objects and Usage counts)
+    #     with self.r.pipeline() as pipe:
+    #         for key in keys:
+    #             pipe.get(key)
+    #             # Derive the usage key from the auth key (auth:name -> usage:name)
+    #             name = key.split(":", 1)[1]
+    #             pipe.get(f"usage:{name}")
             
-            # results will be [auth1, usage1, auth2, usage2, ...]
-            results = pipe.execute()
+    #         # results will be [auth1, usage1, auth2, usage2, ...]
+    #         results = pipe.execute()
 
-        # 3. Process the results in pairs
-        for i in range(0, len(results), 2):
-            raw_auth = results[i]
-            raw_usage = results[i+1]
+    #     # 3. Process the results in pairs
+    #     for i in range(0, len(results), 2):
+    #         raw_auth = results[i]
+    #         raw_usage = results[i+1]
 
-            if raw_auth:
-                try:
-                    api_key_obj = APIkey.model_validate_json(raw_auth)
+    #         if raw_auth:
+    #             try:
+    #                 api_key_obj = APIkey.model_validate_json(raw_auth)
                     
-                    # Default to 0 if usage key doesn't exist in Redis yet
-                    usage_count = int(raw_usage) if raw_usage else 0
+    #                 # Default to 0 if usage key doesn't exist in Redis yet
+    #                 usage_count = int(raw_usage) if raw_usage else 0
                     
-                    # 4. Sync to Database
-                    self.api_service.update_api_key(
-                        key_name=api_key_obj.key_name,
-                        is_active=api_key_obj.is_active,
-                        requests_made_today=usage_count,
-                        last_request_date=api_key_obj.last_request_date
-                    )
-                except (ValidationError, ValueError) as e:
-                    # Log the error but continue with other keys
-                    print(f"Error processing key {keys[i//2]}: {e}")
-                    continue
+    #                 # 4. Sync to Database
+    #                 self.api_service.update_api_key(
+    #                     key_name=api_key_obj.key_name,
+    #                     is_active=api_key_obj.is_active,
+    #                     requests_made_today=usage_count,
+    #                     last_request_date=api_key_obj.last_request_date
+    #                 )
+    #             except (ValidationError, ValueError) as e:
+    #                 # Log the error but continue with other keys
+    #                 print(f"Error processing key {keys[i//2]}: {e}")
+    #                 continue
 
-        return True
+    #     return True
     
 

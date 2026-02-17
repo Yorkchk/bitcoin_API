@@ -1,5 +1,6 @@
 from db import APIkey
 from sqlmodel import Session
+from .utilities import verify_APIkey_hashedkey
 from schemas.schemas import create_API_key_schema, upload_API_key_schema
 import hashlib
 import uuid
@@ -55,15 +56,10 @@ class APIService:
         hashed_key = self.get_api_key(keyname_provided)
         if hashed_key is None:
             return False
-        elif self.verify_APIkey_hashedkey(hashed_key.key_value, provided_key) and hashed_key.key_name == keyname_provided:
+        elif verify_APIkey_hashedkey(hashed_key.key_value, provided_key) and hashed_key.key_name == keyname_provided:
             return hashed_key
         return False
     
-    def verify_APIkey_hashedkey(self, stored_key: str, provided_key: str) -> bool:
-        salt_hex, hashed_key = stored_key.split(':')
-        salt = bytes.fromhex(salt_hex)
-        provided_hashed = hashlib.sha256(salt + provided_key.encode()).hexdigest()
-        return provided_hashed == hashed_key
     
     def get_api_key(self, key_name: str):
         api_key = self.session.get(APIkey, key_name)
