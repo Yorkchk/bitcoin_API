@@ -68,11 +68,17 @@ class RedisService:
     def increment_request_count(self, keyname_provided: str):
         try:
             redis_key = f"usage:{keyname_provided}"
+            auth_key = f"auth:{keyname_provided}"
             new_count = self.r.incr(redis_key)
+
             if new_count == 1:
                 self.r.expire(redis_key, 86400)
-            return new_count
-            
+            raw_auth = self.r.get(auth_key)
+
+            if raw_auth:
+                data = json.loads(raw_auth)
+                data["requests_made_today"] = new_count
+                self.r.set(auth_key, json.dumps(data))            
         except Exception as e:
             return Exception(f"Error incrementing request count: {str(e)}")
 
@@ -88,14 +94,6 @@ class RedisService:
         redis_key = f"data:chart_{type}:{limit}:{start}:{end}"
         redis_value = self.get_value(redis_key)
         if redis_value is None:
-            # chart_service = ChartService(session)
-            # if type == "lastday":
-            #     data = chart_service.get_chart_lastday(limit, start, end)
-            # elif type == "history":
-            #     data = chart_service.get_chart_data(limit, start, end)
-            # json_data = json.dumps([item.model_dump() for item in data])
-            # self.set_key(redis_key, json_data, ex=300)  # Cache for 5 minutes
-            # return data
             return False
         else:
             try:
@@ -108,14 +106,6 @@ class RedisService:
         redis_key = f"data:ohlc_{type}:{limit}:{start}:{end}"
         redis_value = self.get_value(redis_key)
         if redis_value is None:
-            # ohlc_service = OhlcService(self.api_service.session)
-            # if type == "lastday":
-            #     data = ohlc_service.get_ohlc_lastday(limit, start, end)
-            # elif type == "history":
-            #     data = ohlc_service.get_ohlc_history(limit, start, end)
-            # json_data = json.dumps([item.model_dump() for item in data])
-            # self.set_key(redis_key, json_data, ex=300)  # Cache for 5 minutes
-            # return data
             return False
         else:
             try:

@@ -1,6 +1,8 @@
+from fastapi import Depends
 from db import APIkey
 from sqlmodel import Session
 from .utilities import verify_APIkey_hashedkey
+from core.session import get_session
 from schemas.schemas import create_API_key_schema, upload_API_key_schema
 import hashlib
 import uuid
@@ -9,7 +11,7 @@ from datetime import datetime
 
 
 class APIService:
-    def __init__(self, session: Session):
+    def __init__(self, session: Session = Depends(get_session)):
         self.session = session
 
 

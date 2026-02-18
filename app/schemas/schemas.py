@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-
+from typing import Optional
 
 
 class chart_schema(BaseModel):
@@ -43,4 +43,7 @@ class upload_API_key_schema(BaseModel):
     key_name: str
     api_key: str
 
-    
+class data_request_model(upload_API_key_schema):
+    limit: Optional[int] = None
+    start_date : Optional[datetime] = None
+    end_date : Optional[datetime] = None

@@ -1,3 +1,5 @@
+from fastapi import Depends
+from core.session import get_session
 from sqlmodel import Session, select, func, col, cast
 from sqlalchemy import DateTime
 from db import ohlcHistory, Date,Time,Coin,Currency,ohlcLive
@@ -5,7 +7,7 @@ from schemas.schemas import ohlc_schema
 
 
 class OhlcService:
-    def __init__(self, session: Session):
+    def __init__(self, session: Session=Depends(get_session)):
         self.session = session
 
 

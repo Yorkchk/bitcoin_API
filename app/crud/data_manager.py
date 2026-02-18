@@ -1,16 +1,22 @@
 from fastapi import Depends
 import json
 from .api_service import APIService
-from .redis_servicev2 import RedisService
+from .redis_service import RedisService
 from .chart_service import ChartService
 from .ohlc_service import OhlcService
 from pydantic import ValidationError
 from db import APIkey
 
 
+
+
 class DataManager():
 
-    def __init__(self, redis : RedisService=Depends(), api_service : APIService=Depends(), chart_service : ChartService=Depends(), ohlc_service : OhlcService=Depends()):
+    def __init__(self,
+                redis : RedisService=Depends(),
+                api_service : APIService=Depends(),
+                chart_service : ChartService=Depends(),
+                  ohlc_service : OhlcService=Depends()):
         self.r = redis
         self.api_service = api_service
         self.chart_service = chart_service
@@ -20,7 +26,7 @@ class DataManager():
         if self.r.authenticate_apikey(keyname_provided, provided_key):
             return True
         else:
-            api_key = self.api_service.verify_apikey(provided_key, keyname_provided):
+            api_key = self.api_service.verify_apikey(provided_key, keyname_provided)
             if api_key:
                 json_data = api_key.model_dump_json()
                 self.r.set_key(f"auth:{keyname_provided}", json_data, ex=300)
@@ -49,7 +55,7 @@ class DataManager():
             elif type == "history":
                 data = self.chart_service.get_chart_history(limit, start, end)
             
-            json_data = json.dumps([item.model_dump() for item in data])
+            json_data = json.dumps([item.model_dump(mode='json') for item in data])
             self.r.set_key(redis_key, json_data, ex=300)  # Cache for 5 minutes
             return data
         
@@ -112,6 +118,8 @@ class DataManager():
                     # Log the error but continue with other keys
                     print(f"Error processing key {keys[i//2]}: {e}")
                     continue
-
         return True
+    
+    def generate_apikey(self, response_model):
+        return self.api_service.create_api_key(response_model)
 
