@@ -11,7 +11,7 @@ class RedisService:
     # r = redis.Redis(decode_responses=True) 
 
     def __init__(self):
-        self.r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        self.r = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_connect_timeout=1, socket_timeout=2)
 
     def set_key(self, key: str, value: str, ex: int = None):
         self.r.set(key, value, ex=ex)
@@ -123,7 +123,13 @@ class RedisService:
             
             self.set_key(f"auth:{key_name}", api_key_obj.model_dump_json(), ex=300)
 
-
+    def scan_over_keys(self):
+        print("Step 1: Starting scan...")
+        for key in self.r.scan_iter("usage:*"):
+            print(f"Step 2: Found key {key}, fetching value...")
+            value = self.r.get(key)
+            print(f"Step 3: Value is {value}")
+        print("Step 4: Done!")
     # def refresh_db_apicash(self):
     #     # 1. Collect all keys
     #     keys = list(self.r.scan_iter("auth:*"))

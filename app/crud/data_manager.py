@@ -1,4 +1,3 @@
-from fastapi import Depends
 import json
 from .api_service import APIService
 from .redis_service import RedisService
@@ -9,18 +8,14 @@ from db import APIkey
 
 
 
-
 class DataManager():
 
-    def __init__(self,
-                redis : RedisService=Depends(),
-                api_service : APIService=Depends(),
-                chart_service : ChartService=Depends(),
-                  ohlc_service : OhlcService=Depends()):
-        self.r = redis
-        self.api_service = api_service
-        self.chart_service = chart_service
-        self.ohlc_service = ohlc_service
+    def __init__(self, session=None):
+        self.r = RedisService()
+        self.api_service = APIService(session)
+        self.chart_service = ChartService(session)
+        self.ohlc_service = OhlcService(session)
+        self.redis = self.r.r
 
     def authenticate_apikey(self, keyname_provided:str, provided_key: str):
         if self.r.authenticate_apikey(keyname_provided, provided_key):
@@ -79,14 +74,18 @@ class DataManager():
         return self.r.update_lastrequest_date(key_name)
     
     def refresh_db_apicash(self):
+        print("start func")
         # 1. Collect all keys
-        keys = list(self.r.scan_iter("auth:*"))
+        keys = list(self.redis.scan_iter("auth:*"))
         if not keys:
+            print("exit func")
             return True
-
+        print("keys:", keys)
         # 2. Pipeline all GET requests (Auth objects and Usage counts)
-        with self.r.pipeline() as pipe:
+        with self.redis.pipeline() as pipe:
+            print("ENter")
             for key in keys:
+                print("key:", key)
                 pipe.get(key)
                 # Derive the usage key from the auth key (auth:name -> usage:name)
                 name = key.split(":", 1)[1]
@@ -94,7 +93,7 @@ class DataManager():
             
             # results will be [auth1, usage1, auth2, usage2, ...]
             results = pipe.execute()
-
+            print("results:", results)
         # 3. Process the results in pairs
         for i in range(0, len(results), 2):
             raw_auth = results[i]
@@ -106,19 +105,26 @@ class DataManager():
                     
                     # Default to 0 if usage key doesn't exist in Redis yet
                     usage_count = int(raw_usage) if raw_usage else 0
-                    
+                    print("sync to db")
                     # 4. Sync to Database
-                    self.api_service.update_api_key(
+                    print("date: ", api_key_obj.last_request_date)
+                    print("instance: ", type(api_key_obj.last_request_date))
+                    print(self.api_service.update_api_key(
                         key_name=api_key_obj.key_name,
                         is_active=api_key_obj.is_active,
                         requests_made_today=usage_count,
                         last_request_date=api_key_obj.last_request_date
-                    )
+                    ))
+                    print("DONE SYNCING")
                 except (ValidationError, ValueError) as e:
                     # Log the error but continue with other keys
                     print(f"Error processing key {keys[i//2]}: {e}")
-                    continue
+                    # continue
         return True
+
+    # def refresh_db_apicash(self):
+    #     self.r.scan_over_keys()
+    
     
     def generate_apikey(self, response_model):
         return self.api_service.create_api_key(response_model)

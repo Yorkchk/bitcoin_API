@@ -1,5 +1,3 @@
-from fastapi import Depends
-from core.session import get_session
 from sqlmodel import Session, select, func, col, cast
 from sqlalchemy import DateTime
 from db import chartHistory, Date,Time,Coin,Currency,chartHistory, chartLive
@@ -7,7 +5,7 @@ from schemas.schemas import chart_schema
 
 
 class ChartService:
-    def __init__(self, session:Session=Depends(get_session)):
+    def __init__(self, session:Session):
         self.session = session
 
     def get_chart_history(self, limit: int = None, start_date: str = None, end_date: str = None):
