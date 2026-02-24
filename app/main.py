@@ -19,14 +19,15 @@ def get_dm_context():
     # 1. Create session manually
     with Session(engine) as session:
         # 2. Get redis (call the actual logic, not the FastAPI dependency)
-        redis_client = get_redis() 
+        gen = get_redis()
+        redis_client = next(gen) 
         # 3. Provide the DM
         yield DataManager(session, redis_client)
     # Session closes automatically here
 
 
 @app.on_event("startup")
-@repeat_every(seconds=20)
+@repeat_every(seconds=15 * 60)  # 15 minutes
 async def db_sync():
     await asyncio.to_thread(sync_worker)
     print("Database synchronized with API data.")
@@ -37,7 +38,7 @@ def sync_worker():
         
 
 @app.on_event("startup")
-@repeat_every(seconds=24 * 60 * 60)
+@repeat_every(seconds=24 * 60 * 60)  # 24 hours
 async def reset_counts():
     with get_dm_context() as dm:
         dm.reset_daily_limit()
