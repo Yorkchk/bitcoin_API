@@ -10,8 +10,8 @@ from db import APIkey
 
 class DataManager():
 
-    def __init__(self, session=None):
-        self.r = RedisService()
+    def __init__(self, session=None, redis_host=None):
+        self.r = RedisService(redis_host)
         self.api_service = APIService(session)
         self.chart_service = ChartService(session)
         self.ohlc_service = OhlcService(session)
@@ -55,7 +55,7 @@ class DataManager():
             return data
         
     def get_ohlc(self,type : str, limit : int, start: str, end: str):
-        ohlc_data = self.r.cache_chart(type, limit, start, end)
+        ohlc_data = self.r.cache_ohlc(type, limit, start, end)
         if ohlc_data:
             return ohlc_data
         else:
@@ -74,18 +74,14 @@ class DataManager():
         return self.r.update_lastrequest_date(key_name)
     
     def refresh_db_apicash(self):
-        print("start func")
         # 1. Collect all keys
         keys = list(self.redis.scan_iter("auth:*"))
         if not keys:
-            print("exit func")
             return True
         print("keys:", keys)
         # 2. Pipeline all GET requests (Auth objects and Usage counts)
         with self.redis.pipeline() as pipe:
-            print("ENter")
             for key in keys:
-                print("key:", key)
                 pipe.get(key)
                 # Derive the usage key from the auth key (auth:name -> usage:name)
                 name = key.split(":", 1)[1]
@@ -93,7 +89,6 @@ class DataManager():
             
             # results will be [auth1, usage1, auth2, usage2, ...]
             results = pipe.execute()
-            print("results:", results)
         # 3. Process the results in pairs
         for i in range(0, len(results), 2):
             raw_auth = results[i]
@@ -105,25 +100,19 @@ class DataManager():
                     
                     # Default to 0 if usage key doesn't exist in Redis yet
                     usage_count = int(raw_usage) if raw_usage else 0
-                    print("sync to db")
                     # 4. Sync to Database
-                    print("date: ", api_key_obj.last_request_date)
-                    print("instance: ", type(api_key_obj.last_request_date))
                     print(self.api_service.update_api_key(
                         key_name=api_key_obj.key_name,
                         is_active=api_key_obj.is_active,
                         requests_made_today=usage_count,
                         last_request_date=api_key_obj.last_request_date
                     ))
-                    print("DONE SYNCING")
                 except (ValidationError, ValueError) as e:
                     # Log the error but continue with other keys
                     print(f"Error processing key {keys[i//2]}: {e}")
                     # continue
         return True
 
-    # def refresh_db_apicash(self):
-    #     self.r.scan_over_keys()
     
     
     def generate_apikey(self, response_model):

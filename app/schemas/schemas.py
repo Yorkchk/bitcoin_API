@@ -12,7 +12,7 @@ class chart_schema(BaseModel):
     total_volume: float
 
 class ohlc_schema(BaseModel):
-    timestamp: datetime
+    timestamp: str
     coin_name: str
     currency_name: str
     open: float

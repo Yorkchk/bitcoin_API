@@ -8,10 +8,9 @@ from datetime import datetime
 
 class RedisService:
 
-    # r = redis.Redis(decode_responses=True) 
 
-    def __init__(self):
-        self.r = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_connect_timeout=1, socket_timeout=2)
+    def __init__(self, redis_host):
+        self.r = redis_host
 
     def set_key(self, key: str, value: str, ex: int = None):
         self.r.set(key, value, ex=ex)

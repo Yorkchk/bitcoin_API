@@ -1,53 +1,49 @@
-from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi_utilities import repeat_every 
 from sqlmodel import SQLModel, Session
 from core.session import engine
-from core.session import get_session
+from core.session import get_session, get_redis
 from schemas.schemas import *
 from crud.data_manager import DataManager
 from datetime import date, time
-import logging
 import asyncio
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# @asynccontextmanager
-# def lifespan(app: FastAPI):
-#     # Startup code can be added here
-#     SQLModel.metadata.create_all(bind=engine)
-#     yield
-#     # Shutdown code can be added here
-
-
-
-# app = FastAPI(lifespan=lifespan)
 app = FastAPI()
+
+
+@contextmanager
+def get_dm_context():
+    """Manual factory for background tasks."""
+    # 1. Create session manually
+    with Session(engine) as session:
+        # 2. Get redis (call the actual logic, not the FastAPI dependency)
+        redis_client = get_redis() 
+        # 3. Provide the DM
+        yield DataManager(session, redis_client)
+    # Session closes automatically here
+
 
 @app.on_event("startup")
 @repeat_every(seconds=20)
 async def db_sync():
-    logger.info("START")
-    # We use to_thread to keep the background task from blocking the API
     await asyncio.to_thread(sync_worker)
-    logger.info("END")
+    print("Database synchronized with API data.")
 
 def sync_worker():
-    # This is a regular sync function
-    with Session(engine) as session:
-        dm = DataManager(session)
+    with get_dm_context() as dm:
         dm.refresh_db_apicash()
+        
 
 @app.on_event("startup")
 @repeat_every(seconds=24 * 60 * 60)
 async def reset_counts():
-    with Session(engine) as session:
-        dm = DataManager(session=session)
+    with get_dm_context() as dm:
         dm.reset_daily_limit()
 
-def get_dm(session:Session=Depends(get_session)):
-    return DataManager(session)
+def get_dm(session:Session=Depends(get_session),redis_host=Depends(get_redis) ):
+    return DataManager(session, redis_host)
 
 @app.put("/generareApi/", response_model=upload_API_key_schema)
 async def generate_apikey(create_API_schema: create_API_key_schema, data_manager : DataManager=Depends(get_dm)):
@@ -91,7 +87,7 @@ async def get_livechartData(key_name:str,
         raise HTTPException(status_code=429, detail="Too many requests")
     else:
         chart_data = data_manager.get_chart(
-            type="live",
+            type="lastday",
             limit = limit,
             start = start_time,
             end=end_time
@@ -135,8 +131,8 @@ async def get_liveOhlcData(key_name:str,
     elif not data_manager.check_rate_limit(key_name):
         raise HTTPException(status_code=429, detail="Too many requests")
     else:
-        ohlc_data = data_manager.get_chart(
-            type="live",
+        ohlc_data = data_manager.get_ohlc(
+            type="lastday",
             limit = limit,
             start = start_time,
             end=end_time

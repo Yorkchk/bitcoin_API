@@ -99,21 +99,15 @@ class APIService:
     
     def update_api_key(self, is_active: bool, requests_made_today: int, last_request_date: str, key_name: str):
         try:
-            print("START")
             api_key = self.get_api_key(key_name)
-            print("STRT IF")
             if api_key is not None and isinstance(api_key, APIkey):
-                print("in if statetemnt")
                 api_key.is_active = is_active
                 api_key.requests_made_today = requests_made_today
                 api_key.last_request_date = datetime.fromisoformat(last_request_date)
-                print("before adding")
                 self.session.add(api_key)
                 self.session.commit()
-                print("after commiting")
                 return True
-            print("about to return false")
             return False
-        except Exception as e:
+        except Exception:
             import traceback
-            traceback.print_exc() # This prints the actual stack trace correctly
+            traceback.print_exc()
