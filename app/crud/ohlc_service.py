@@ -12,7 +12,7 @@ class OhlcService:
         self.session = session
 
 
-    def get_ohlc_history(self, limit: int = None, start_time: str = None, end_time: str = None):
+    def get_ohlc_history(self, limit: int = None, start_date: str = None, end_date: str = None):
         statement = (
             select(
                 # 1. CAST(CONCAT(...) AS DATETIME2)
@@ -37,13 +37,13 @@ class OhlcService:
             .order_by(col(Date.full_date), col(Time.time_of_day))
 
         )
-        if start_time:
+        if start_date:
             statement = statement.where(
-                func.concat(Date.full_date, ' ', Time.time_of_day) >= start_time
+                Date.full_date >= start_date
             )
-        if end_time:
+        if end_date:
             statement = statement.where(
-                func.concat(Date.full_date, ' ', Time.time_of_day) <= end_time
+                Date.full_date <= end_date
             )
         statement = statement.limit(limit)
 
@@ -51,7 +51,7 @@ class OhlcService:
 
         schema = [
             ohlc_schema(
-                timestamp=row.timestamp.strftime("%H:%M:%S"),
+                timestamp=str(row.timestamp),
                 coin_name=row.coin_name,
                 currency_name=row.currency_name,
                 open=row.open,
@@ -99,7 +99,7 @@ class OhlcService:
 
         schema = [
             ohlc_schema(
-                timestamp=row.timestamp.strftime("%H:%M:%S"),
+                timestamp=str(row.timestamp),
                 coin_name=row.coin_name,
                 currency_name=row.currency_name,
                 open=row.open,
